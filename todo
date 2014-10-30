@@ -1,0 +1,78 @@
+  class CommandLineArgs {
+    @Parameter
+    var verbose: Boolean = false
+
+    @Parameter(names = Array("--help"), help = true)
+    var help : Boolean = false
+  }
+
+  trait Options {
+    @Parameter( names = Array("--latest"))
+    var latest: Boolean = false
+  }
+
+  class GraphCommand extends Options {
+  }
+  class RunCommand extends Options {
+  }
+
+  def main(args: Array[String]) {
+
+    val cla = new CommandLineArgs
+    val jc = new JCommander()
+    jc.addObject(cla)
+    val graph = new GraphCommand
+    jc.addCommand("graph", graph)
+    val run = new RunCommand
+    jc.addCommand("run", run)
+
+//    jc.parse("graph", "--latest")
+    jc.parse("--help")
+
+    if( cla.help ) {
+
+        println(ansi"\Underline{Usage}")
+        println()
+        println(ansi" cli [options] \yellow{command} \bold{[command parameter(s)]} [command options]")
+        println()
+        println(ansi"\Underline{Options:}")
+        println()
+        _jCommander.parameters.findAll { !it.parameter.hidden() }.sort { it.names }.each { globalParam ->
+            LOG.info(
+              String.format(" @|yellow %-${_jCommander.parameters.collect { computeOptionSyntax(it) }*.size().max()}s|@ : %s %s",
+                computeOptionSyntax(globalParam),
+                globalParam.description,
+                computeDefaultValue(globalParam) ? "(Default: ${computeDefaultValue(globalParam)})" : ""))
+        }
+        LOG.info("")
+        LOG.info("@|underline Commands:|@")
+        _jCommander.commands.each { command, commandDescription ->
+            LOG.info("")
+          List<String> commandHelp = new ArrayList<>()
+          commandHelp << _scriptName
+          commandHelp << "[options]"
+          commandHelp << "@|yellow ${command}|@"
+          if (commandDescription.mainParameter) {
+            commandHelp << "@|bold ${commandDescription.mainParameter?.description}|@"
+          }
+          if (_jCommander.commands[command].parameters.findAll { !it.parameter.hidden() }.size() > 0) {
+            commandHelp << "[${command} options]"
+          }
+          LOG.info(" ${commandHelp.join(" ")}")
+          commandDescription.parameters.findAll { !it.parameter.hidden() }.sort { it.names }.each { commandParam ->
+              LOG.info(
+                String.format(
+                  " @|yellow %-${commandDescription.parameters.findAll { !it.parameter.hidden() }.collect { computeOptionSyntax(it) }*.trim()*.size().max()}s|@ : %s %s",
+                  computeOptionSyntax(commandParam),
+                  commandParam.description,
+                  computeDefaultValue(commandParam) ? "(Default: ${computeDefaultValue(commandParam)})" : ""))
+          }
+        }
+        LOG.info("")
+      }
+
+    }
+
+    println("Parsed command = " + jc.getParsedCommand)
+    println("graph.latest = " + graph.latest)
+  }
